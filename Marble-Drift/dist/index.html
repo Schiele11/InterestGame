@@ -7,10 +7,10 @@
   <meta name="description" content="让弹珠穿过移动倍率门，享受碰撞、增殖与落袋的快乐。轻按发射一颗，长按快乐加倍。">
   <title>弹珠漫游 · Marble Drift</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=2">
   <script defer src="./vendor/matter.min.js"></script>
-  <script defer src="./game-core.js"></script>
-  <script defer src="./app.js"></script>
+  <script defer src="./game-core.js?v=2"></script>
+  <script defer src="./app.js?v=2"></script>
 </head>
 <body>
   <header class="site-header">
@@ -31,7 +31,7 @@
         <span class="section-label">快乐只需要三步</span>
         <div><b>01</b><p>轻按一颗，长按连发<small>也可以按住空格键</small></p></div>
         <div><b>02</b><p>穿过倍率门，弹珠加倍<small>五个移动小门，偶遇一点好运</small></p></div>
-        <div><b>03</b><p>落出一颗，收获一分<small>攒够分数，再送你一颗</small></p></div>
+        <div><b>03</b><p>攒满能量，进入狂热<small>5 秒无限弹珠，按住尽情发射</small></p></div>
       </div>
       <div class="best-card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg><span>我的最高纪录<small>BEST MOMENT</small></span><strong id="best-score">0</strong></div>
     </aside>
@@ -41,8 +41,10 @@
       <div class="screen-wrap">
         <canvas id="game-canvas" width="600" height="780" aria-label="弹珠从顶部发射，穿过五个移动倍率门，沿斜坡落入底部出口"></canvas>
         <div class="screen-caption" id="screen-caption"><span>LET THE GOOD TIMES DROP</span><b>轻按发射，开始漫游</b></div>
+        <div class="fever-banner" id="fever-banner" hidden><b>✦ FEVER · 无限弹珠</b><span id="fever-countdown">5.0s</span></div>
+        <div class="combo-callout" id="combo-callout" role="status" aria-live="polite"><b id="combo-title"></b><span id="combo-detail"></span></div>
         <div class="pause-screen" id="pause-screen" hidden><span>Ⅱ</span><b>休息一下</b><p>快乐会在这里等你</p><button id="resume-button">继续漫游 ↗</button></div>
-        <div class="result-screen" id="result-screen" hidden><span class="result-eyebrow">A LITTLE MOMENT OF JOY</span><h2>这一局，很快乐。</h2><p>本局得分</p><strong id="result-score">0</strong><div class="result-detail"><span>发射 <b id="result-fired">0</b> 颗</span><span>奖励 <b id="result-earned">0</b> 颗</span></div><button id="play-again">再玩一局 ↗</button></div>
+        <div class="result-screen" id="result-screen" hidden><span class="result-eyebrow">A LITTLE MOMENT OF JOY</span><h2>这一局，很快乐。</h2><p>本局得分</p><strong id="result-score">0</strong><div class="result-detail"><span>发射 <b id="result-fired">0</b> 颗</span><span>奖励 <b id="result-earned">0</b> 颗</span><span>狂热免费发射 <b id="result-free">0</b> 颗</span></div><button id="play-again">再玩一局 ↗</button></div>
       </div>
       <div class="cabinet-bottom"><span>PHYSICS ON · WORRIES OFF</span><div><i></i><i></i><i></i><i></i><i></i></div><span>NO. 001</span></div>
     </section>
@@ -50,8 +52,9 @@
     <aside class="control-deck" aria-label="计分与发射控制">
       <div class="stats">
         <div class="score-block"><span class="section-label">当前分数 <i>LIVE SCORE</i></span><strong id="score">0</strong><span class="score-unit">每一颗落出，都是一分。</span></div>
-        <div class="ammo-block"><div><span class="section-label">剩余弹珠</span><strong id="ammo">30</strong></div><div class="ammo-orb" aria-hidden="true"><i></i><i></i><i></i></div></div>
+        <div class="ammo-block"><div><span class="section-label">剩余弹珠</span><strong id="ammo">30</strong><small id="ammo-stock" hidden>库存 30 颗</small></div><div class="ammo-orb" aria-hidden="true"><i></i><i></i><i></i></div></div>
         <div class="reward-block"><div><span>下一颗奖励弹珠</span><b id="reward-progress">0 / 100</b></div><div class="progress-track" role="progressbar" id="reward-bar" aria-label="奖励弹珠进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div><p id="reward-note">每获得 100 分，额外奖励 1 颗</p></div>
+        <div class="fever-card"><div><span id="fever-label">✦ 狂热能量</span><b id="fever-progress">0 / 100</b></div><div class="fever-track" role="progressbar" id="fever-bar" aria-label="狂热能量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="fever-fill"></span></div><p id="fever-note">穿门 / 落袋各 +1 · 满能量狂热 5 秒</p></div>
       </div>
       <div class="launcher-controls">
         <div class="live-indicator"><span><i></i> 场内 <b id="active-count">0</b> 颗</span><span id="queue-label" hidden>待入场 <b id="queue-count">0</b></span></div>
@@ -72,6 +75,8 @@
       <fieldset><legend>五个倍率门 <span>倍率范围 ×1 — ×20</span></legend><div id="gate-settings"></div></fieldset>
       <div class="number-settings"><label for="initial-ammo">初始弹珠数量<small>1 — 1,000 颗</small></label><input id="initial-ammo" name="ammo" type="number" min="1" max="1000" step="1" required></div>
       <div class="number-settings"><label for="bonus-every">每多少分奖励 1 颗<small>1 — 10,000 分</small></label><input id="bonus-every" name="bonus" type="number" min="1" max="10000" step="1" required></div>
+      <div class="number-settings"><label for="fever-threshold">狂热能量门槛<small>1 — 10,000 能量 · 持续 5 秒</small></label><input id="fever-threshold" name="fever" type="number" min="1" max="10000" step="1" required></div>
+      <p class="fever-rules">每次穿门、每颗落袋各积攒 1 能量。狂热期间弹珠无限、连发加速、门变宽，库存不扣减；期间暂停蓄能，结束后重新积攒。</p>
       <p class="performance-note">高倍率时，新增弹珠会排队入场；每颗仍单独计分。弹珠用尽后，等场内及待入场弹珠全部落出才结算。</p>
       <div class="dialog-actions"><button type="button" id="restore-defaults">恢复默认</button><button type="submit">保存并开始新一局 ↗</button></div>
     </form>
