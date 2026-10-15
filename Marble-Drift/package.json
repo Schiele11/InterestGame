@@ -1,0 +1,6 @@
+{
+  "name": "marble-drift",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {"start": "node serve.cjs", "test": "node --test tests/core.test.cjs"}
+}
