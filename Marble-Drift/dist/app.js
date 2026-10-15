@@ -3,7 +3,7 @@
   const {MarbleGame,DEFAULTS,GATE_LAYOUT,validateSettings,WIDTH,HEIGHT,RADIUS,STEP,FEVER_DURATION}=MarbleCore;
   const $=id=>document.getElementById(id),canvas=$('game-canvas'),ctx=canvas.getContext('2d');
   const store={get(key,fallback){try{const v=localStorage.getItem('marble-drift:'+key);return v===null?fallback:JSON.parse(v);}catch{return fallback;}},set(key,value){try{localStorage.setItem('marble-drift:'+key,JSON.stringify(value));}catch{}}};
-  let settings=validateSettings(store.get('settings',DEFAULTS)),best=Number(store.get('best',0))||0,sound=!!store.get('sound',false),audio=null,lastSound=0,held=false,nextShot=0,wasPaused=false,toastTimer=0;
+  let settings=validateSettings(store.get('settings',DEFAULTS)),best=Number(store.get('best',0))||0,sound=!!store.get('sound',false),audio=null,lastSound=0,held=false,wasPaused=false,toastTimer=0;
   let particles=[],floats=[],rings=[],combo={chain:0,until:0},gateNotices=Array(5).fill(-Infinity),lastFrame=performance.now(),accumulator=0,lastUI=0;
   const colors=['#e6fba0','#e8ddff','#ffc5af','#a9e3d2','#ffe6ac','#ffdc61'];
   const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -21,7 +21,7 @@
     if(e.type==='fire'){burst(e.x,e.y-9,'#d9f775',3);tone('fire');}
     if(e.type==='score'){burst(300,746,'#d9f775',Math.min(e.count*2,8));tone('score');}
     if(e.type==='bonus'){tone('bonus');if(floats.length<14)floats.push({x:300,y:704,text:'奖励 +'+e.count,color:'#d9f775',life:1.3});}
-    if(e.type==='feverStart'){burst(300,140,'#ffdc61',50);tone('fever');if(held)nextShot=Math.min(nextShot,performance.now()+75);}
+    if(e.type==='feverStart'){burst(300,140,'#ffdc61',50);tone('fever');}
     if(e.type==='over'){stopHold();best=Math.max(best,e.score);store.set('best',best);$('best-score').textContent=format(best);$('result-score').textContent=format(e.score);$('result-fired').textContent=format(game.fired);$('result-earned').textContent=format(game.earned);$('result-free').textContent=format(game.freeShots);$('result-screen').hidden=false;$('play-again').focus({preventScroll:true});}
   }
   const game=new MarbleGame(settings,onEvent);
@@ -58,18 +58,18 @@
     ctx.strokeStyle='#c4de8750';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(248,755);ctx.lineTo(352,755);ctx.stroke();ctx.fillStyle='#bfdc92';ctx.font='11px "Segoe UI",sans-serif';ctx.textAlign='center';ctx.fillText('↓  出口 +1  ↓',300,777);
   }
   function updateUI(){
-    const s=game.snapshot();$('score').textContent=format(s.score);$('ammo').textContent=s.isFever?'∞':format(s.ammo);$('ammo-stock').hidden=!s.isFever;$('ammo-stock').textContent='库存 '+format(s.ammo)+' 颗';$('active-count').textContent=format(s.active);$('queue-count').textContent=format(s.pending);$('queue-label').hidden=!s.pending;
+    const s=game.snapshot();$('score').textContent=format(s.score);$('ammo').textContent=s.isFever?'∞':format(s.ammo);$('ammo-stock').hidden=!s.isFever;$('ammo-stock').textContent='库存 '+format(s.ammo)+' 颗';$('active-count').textContent=format(s.active);$('active-limit').textContent=format(s.maxActive);$('queue-count').textContent=format(s.pending);$('queue-label').hidden=!s.pending;
     const n=s.score%settings.bonusEvery;$('reward-progress').textContent=format(n)+' / '+format(settings.bonusEvery);$('progress-fill').style.width=(100*n/settings.bonusEvery)+'%';$('reward-bar').setAttribute('aria-valuemax',settings.bonusEvery);$('reward-bar').setAttribute('aria-valuenow',n);$('reward-note').textContent='每获得 '+format(settings.bonusEvery)+' 分，额外奖励 1 颗';
     $('screen-caption').style.opacity=s.status==='ready'?'1':'0';$('pause-screen').hidden=s.status!=='paused'||$('settings-dialog').open;$('pause-button').innerHTML=s.status==='paused'?'<span aria-hidden="true">▷</span> 继续':'<span aria-hidden="true">Ⅱ</span> 暂停';$('pause-button').disabled=s.status==='over';$('fire-button').disabled=s.status==='paused'||s.status==='over';
     const seconds=(Math.ceil(s.feverRemaining/100)/10).toFixed(1)+'s';document.body.classList.toggle('is-fever',s.isFever);$('fever-banner').hidden=!s.isFever;$('fever-countdown').textContent=seconds;$('fever-label').textContent=s.isFever?'✦ 狂热进行中':'✦ 狂热能量';$('fever-progress').textContent=s.isFever?seconds:format(s.energy)+' / '+format(settings.feverThreshold);$('fever-fill').style.width=(s.isFever?100*s.feverRemaining/FEVER_DURATION:100*s.energy/settings.feverThreshold)+'%';$('fever-bar').setAttribute('aria-valuemax',s.isFever?FEVER_DURATION:settings.feverThreshold);$('fever-bar').setAttribute('aria-valuenow',s.isFever?Math.ceil(s.feverRemaining):s.energy);$('fever-bar').setAttribute('aria-label',s.isFever?'狂热剩余时间':'狂热能量');$('fever-note').textContent=s.isFever?'弹珠无限 · 发射加速 · 倍率门变宽':'穿门 / 落袋各 +1 · 满能量狂热 5 秒';
     $('fire-button').querySelector('b').textContent=s.isFever?'无限连发':s.ammo===0&&s.status==='running'?'等待奖励弹珠':'发射弹珠';$('fire-button').querySelector('small').textContent=s.isFever?'5 秒狂热 · 发射不扣库存':'轻按一颗 · 长按连发';
     $('machine-status').textContent=s.isFever&&s.status==='running'?'FEVER · INFINITE':{ready:'READY TO PLAY',running:'LET IT FLOW',paused:'TAKE A BREATH',over:'WELL PLAYED'}[s.status];
-    $('settle-note').textContent=s.isFever?'狂热期间弹珠无限，按住尽情发射！':s.status==='over'?'快乐已收好，再来一局吧。':s.ammo===0?'弹珠用尽，等待场内落球与奖励…':'不赶时间，等最后一颗落下。';
+    $('settle-note').textContent=s.queuedShots>0?'发射口暂时拥堵，正在等待出球…':s.isFever?'狂热期间弹珠无限，按住尽情发射！':s.status==='over'?'快乐已收好，再来一局吧。':s.ammo===0?'弹珠用尽，等待场内落球与奖励…':'不赶时间，等最后一颗落下。';
     if(performance.now()>combo.until)$('combo-callout').classList.remove('show');
   }
-  function shoot(){initAudio();game.fire();updateUI();}
-  function startHold(){if(held||$('settings-dialog').open||game.status==='paused'||game.status==='over')return;held=true;nextShot=performance.now()+220;$('fire-button').classList.add('is-held');shoot();}
-  function stopHold(){held=false;$('fire-button').classList.remove('is-held');}
+  function shoot(){initAudio();game.requestShot();updateUI();}
+  function startHold(){if(held||$('settings-dialog').open||game.status==='paused'||game.status==='over')return;held=true;initAudio();game.setFiring(true);$('fire-button').classList.add('is-held');updateUI();}
+  function stopHold(){held=false;game.setFiring(false);$('fire-button').classList.remove('is-held');}
   $('fire-button').addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();$('fire-button').setPointerCapture(e.pointerId);startHold();});
   for(const event of ['pointerup','pointercancel','lostpointercapture'])$('fire-button').addEventListener(event,stopHold);
   $('fire-button').addEventListener('click',e=>{if(e.detail===0)shoot();});
@@ -83,13 +83,13 @@
   function updateSoundButton(){const b=$('sound-button');b.setAttribute('aria-pressed',String(sound));b.setAttribute('aria-label',sound?'关闭音效':'开启音效');b.innerHTML=sound?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5zM15 8c3 2 3 6 0 8M18 5c5 4 5 10 0 14"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5zM16 9l5 6m0-6-5 6"/></svg>';}
   $('sound-button').addEventListener('click',()=>{sound=!sound;store.set('sound',sound);initAudio();updateSoundButton();if(sound)tone('bonus');});updateSoundButton();
   $('gate-settings').innerHTML=GATE_LAYOUT.map((g,i)=>'<div class="gate-setting"><label for="gate-'+i+'"><span class="gate-dot" style="background:'+g.color+'"></span>0'+(i+1)+' · '+g.label+'</label><span>× <input id="gate-'+i+'" name="gate-'+i+'" type="number" min="1" max="20" step="1" required aria-label="第'+(i+1)+'个门的倍率"></span></div>').join('');
-  function populateForm(config){config.multipliers.forEach((n,i)=>$('gate-'+i).value=n);$('initial-ammo').value=config.initialAmmo;$('bonus-every').value=config.bonusEvery;$('fever-threshold').value=config.feverThreshold;}
+  function populateForm(config){config.multipliers.forEach((n,i)=>$('gate-'+i).value=n);$('initial-ammo').value=config.initialAmmo;$('bonus-every').value=config.bonusEvery;$('fever-threshold').value=config.feverThreshold;$('max-active').value=config.maxActive;}
   $('settings-button').addEventListener('click',()=>{stopHold();wasPaused=game.status==='paused';game.pause();populateForm(settings);$('settings-dialog').showModal();updateUI();});
   $('close-settings').addEventListener('click',()=>$('settings-dialog').close());
   $('settings-dialog').addEventListener('close',()=>{if(!wasPaused)game.resume();updateUI();});
   $('restore-defaults').addEventListener('click',()=>populateForm(DEFAULTS));
-  $('settings-form').addEventListener('submit',e=>{e.preventDefault();if(!$('settings-form').reportValidity())return;settings=validateSettings({multipliers:GATE_LAYOUT.map((_,i)=>Number($('gate-'+i).value)),initialAmmo:Number($('initial-ammo').value),bonusEvery:Number($('bonus-every').value),feverThreshold:Number($('fever-threshold').value)});store.set('settings',settings);reset();$('settings-dialog').close();toast('设置已保存，新的一局准备好了。');});
+  $('settings-form').addEventListener('submit',e=>{e.preventDefault();if(!$('settings-form').reportValidity())return;settings=validateSettings({multipliers:GATE_LAYOUT.map((_,i)=>Number($('gate-'+i).value)),initialAmmo:Number($('initial-ammo').value),bonusEvery:Number($('bonus-every').value),feverThreshold:Number($('fever-threshold').value),maxActive:Number($('max-active').value)});store.set('settings',settings);reset();$('settings-dialog').close();toast('设置已保存，新的一局准备好了。');});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){stopHold();game.pause();updateUI();}lastFrame=performance.now();accumulator=0;});
-  function frame(now){const dt=Math.min(now-lastFrame,50);lastFrame=now;if(held&&now>=nextShot){shoot();nextShot=now+game.fireInterval;}accumulator+=dt;while(accumulator>=STEP){game.advance(STEP);accumulator-=STEP;}render(dt);if(now-lastUI>80){updateUI();lastUI=now;}requestAnimationFrame(frame);}
+  function frame(now){const dt=Math.min(now-lastFrame,50);lastFrame=now;accumulator+=dt;while(accumulator>=STEP){game.advance(STEP);accumulator-=STEP;}render(dt);if(now-lastUI>80){updateUI();lastUI=now;}requestAnimationFrame(frame);}
   $('best-score').textContent=format(best);updateUI();requestAnimationFrame(frame);
 })();
